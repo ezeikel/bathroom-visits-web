@@ -1,8 +1,22 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## Notes
 
-## Getting Started
+There are a few things I wasn't able to figure out:
+- Regression line
+  - I installed the 3rd party package `simple-statistics` and started using the linear regression functions from it but ran out of time to get this working correctly using the scales I had already defined. Could probably figure this out with some more time, but I think the issue with with the domain I had set up for the x axis not actually being a value that can be converted to a number.
+- Displaying all 365 days of data
+  - I spliced the array and only show 10 days so that the bars can be visible, otherwise there are too many bars and the labels are not visible. Did some reading about `d3.brush` which would allow panning the data, however didnt have the time to figure this out
+- Tooltip
+  - I found that the easiest way to do this would be to add a `Title` tag to the `rect` for each bar with the text for the tooltip but for a custom one it would basically need a element inside the rect that would be initally `visibility: hidden` and then with mouse over events to switch that on and off but didnt feel like I had enough time to figure this out
+- General code quality things
+  - Prettier
+  - Linting
+  - Tests
+  - Commit hooks
+  - More seperation of code
+  
+## Running locally
 
-First, run the development server:
+You can run the development server using:
 
 ```bash
 npm run dev
@@ -10,25 +24,4 @@ npm run dev
 yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
-
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
-
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the app running.

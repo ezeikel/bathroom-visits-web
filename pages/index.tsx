@@ -1,72 +1,186 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import type { NextPage } from "next";
+import {
+  select,
+  scaleBand,
+  scaleLinear,
+  max,
+  axisBottom,
+  axisLeft,
+  line,
+} from "d3";
+import { useEffect, useRef, useState } from "react";
+import * as ss from "simple-statistics";
+import { usePapaParse } from "react-papaparse";
+import format from "date-fns/format";
+import { aggregateData } from "../utils";
 
-const Home: NextPage = () => {
+const height = 500;
+const width = 960;
+const margin = { top: 50, right: 50, bottom: 50, left: 50 };
+
+const threshold = 3;
+
+const HomePage: NextPage = () => {
+  const { readRemoteFile } = usePapaParse();
+  const svg = useRef<SVGAElement>(null);
+  const [data, setData] = useState<any>(null);
+
+  const drawChart = (svgRef: React.RefObject<SVGSVGElement>) => {
+    // grab hold of ref to DOM element
+    const svg = select(svgRef.current);
+
+    // width of chart accounting for margins
+    const innerHeight = height - margin.top - margin.bottom;
+    const innerWidth = width - margin.left - margin.right;
+
+    const xScale = scaleBand()
+      .domain(data.map((dataPoint) => dataPoint.date))
+      .range([0, innerWidth])
+      .padding(0.1);
+
+    const yScale = scaleLinear()
+      .domain([0, max(data, (dataPoint) => dataPoint.count)])
+      .range([innerHeight, 0]);
+
+    // derive a linear regression
+    var linearRegression = ss.linearRegression(
+      data.map((data) => [+data.date, data.count]),
+    );
+
+    // function to create regression line
+    const linearRegressionLine = ss.linearRegressionLine(linearRegression);
+
+    // Create a line based on the beginning and endpoints of the range
+    var lineData = xScale.domain().map((x) => {
+      return {
+        date: x,
+        count: linearRegressionLine(+x),
+      };
+    });
+
+    const regressionEndpoints = [
+      {
+        date: linearRegressionLine(new Date(data[0].timestamp).getTime()),
+        count: data[0].count,
+      },
+      {
+        date: linearRegressionLine(
+          new Date(data[data.length - 1].timestamp).getTime(),
+        ),
+        count: data[data.length - 1].count,
+      },
+    ];
+
+    svg.attr("viewBox", [0, 0, width, height]);
+
+    // move graph to account for margin
+    const g = svg
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // x-axis
+    g.append("g")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(axisBottom(xScale))
+      .append("text")
+      .attr("y", 40)
+      .attr("x", innerWidth / 2)
+      .attr("text-anchor", "end")
+      .attr("stroke", "black")
+      .text("Date");
+
+    // y-axis
+    g.append("g")
+      .call(axisLeft(yScale).ticks(10))
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("x", -(innerHeight / 2))
+      .attr("dy", -40)
+      .attr("text-anchor", "end")
+      .attr("stroke", "black")
+      .text("Number of bathroom visits");
+
+    // draw bars
+    g.selectAll(".bar")
+      .data(data)
+      .enter()
+      .append("rect")
+      .classed("bar", true)
+      .attr("width", xScale.bandwidth())
+      .attr("height", (data) => innerHeight - yScale(data.count))
+      .attr("x", (data) => xScale(data.date))
+      .attr("y", (data) => yScale(data.count))
+      .attr("fill", (data) => (data.count > threshold ? "red" : "orange"));
+
+    // draw line
+    g.append("path")
+      .datum(data)
+      .attr("fill", "none")
+      .attr("stroke", "steelblue")
+      .attr("stroke-width", 1.5)
+      .attr(
+        "d",
+        line()
+          .x((data) => xScale(data.date))
+          .y((data) => yScale(data.count)),
+      );
+
+    // draw regression line
+    // TODO: fix this
+    g.append("path")
+      .attr("id", "linear-regression-fitted-line")
+      .datum(regressionEndpoints)
+      .attr("fill", "none")
+      .attr("stroke", "green")
+      .attr("stroke-width", 3)
+      .attr("stroke-linejoin", "round")
+      .attr("stroke-linecap", "round")
+      .attr(
+        "d",
+        line()
+          .x((data) => xScale(data.date))
+          .y((data) => yScale(data.count)),
+      );
+  };
+
+  useEffect(() => {
+    // parse csv file
+    readRemoteFile("/BATHROOM_VISIT_DATA.csv", {
+      header: true,
+      complete: (results) => {
+        const formattedData = aggregateData(results.data);
+        const formattedDataWithSortedDates = formattedData
+          .sort((a, b) => {
+            const dateA = new Date(a.timestamp);
+            const dateB = new Date(b.timestamp);
+            return +dateA - +dateB;
+          })
+          .map((data) => ({
+            ...data,
+            date: format(new Date(data.timestamp), "d MMM"),
+          }));
+
+        // TODO: slicing the first 10 days for now as cant figure out how to display lots of data yet
+        setData(formattedDataWithSortedDates.slice(0, 10));
+      },
+      download: true,
+    });
+  }, [readRemoteFile]);
+
+  useEffect(() => {
+    if (!data) return;
+
+    drawChart(svg);
+  }, [svg, data]);
+
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <meta name="description" content="Generated by create next app" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+    <div>
+      <main>
+        <svg ref={svg} />
       </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default HomePage;
